@@ -1,0 +1,251 @@
+<html>
+<head>
+	<title>My Site</title>
+	  <link rel="stylesheet" href="//code.jquery.com/ui/1.11.2/themes/smoothness/jquery-ui.css">
+	<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+	<script src="//code.jquery.com/ui/1.11.2/jquery-ui.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+<style>
+  #eq > span {
+    height:120px; float:left; margin:15px
+  }
+  body {
+  	font-family: helvetica;
+  	font-size: 11px;
+  }
+  </style>
+</head>
+<body>
+	<!-- <h1>This is the index</h1>
+	<h2>you hit http://localhost:8080/ </h2> -->
+	<div id="roll" style="background-color:#08ff11; width: 50px; height:50px;">
+	Rolling</div>
+	<div id="dir" style="background-color:#1095ff; width: 50px; height:50px;">
+	Direction</div>
+	<div id="wind" style="background-color:#ff31ec; width: 50px; height:50px;">
+	Wind</div>
+
+	<!-- <p> This is the index.html file in my /public folder </p> -->
+
+<!-- 	<form id="textbox" method="post" action="/input/text">
+		<input type="text" placeholder="enter some text..." name="mytext">
+		<input type="submit" value="Send">
+	</form> -->
+
+	<div id="mousedata"></div>
+	<p class="ui-state-default ui-corner-all ui-helper-clearfix" style="padding:4px; " >
+	  <span style="float:left; margin:-2px 5px 0 0; width=300px"></span>
+	  Speed Motor 1
+	</p>
+	 <div id="player1">&nbsp;</div> 
+	<div id="master1" style="width:260px; margin:15px;"></div>
+
+	<p class="ui-state-default ui-corner-all ui-helper-clearfix" style="padding:4px;">
+	  <span style="float:left; margin:-2px 5px 0 0;"></span>
+	  Speed Motor 2
+	</p>
+	 <div id="player2">&nbsp;</div> 
+	<div id="master2" style="width:260px; margin:15px;"></div>
+
+	<p class="ui-state-default ui-corner-all ui-helper-clearfix" style="padding:4px;">
+	  <span style="float:left; margin:-2px 5px 0 0;"></span>
+	  Speed Motor 3
+	</p>
+	 <div id="player3">&nbsp;</div> 
+	<div id="master3" style="width:260px; margin:15px;"></div>
+	 
+
+	<script>
+		var socket = io();
+		var ledState = 0;
+
+		// Whenever the server emits 'typing', show the typing message
+		// socket.on('event', function (data) {
+		// 	console.log("received from server: "+data);
+		// 	$( '#mousedata' ).append("<div>"+ data +"</div>");
+		// 	var len = $( "div" ).length;
+		// 	if (len > 30) {
+		// 		$("#mousedata").empty();
+		// 	}
+		// });
+
+
+		/*******************************************************************/
+		/*******************************************************************/
+
+		var windGust = 0;
+		var precip_1hr = 0;
+		var currTemp = 0;
+		var humility = 0;
+		var visibi = 0;
+
+		/* AJAX */
+		$.ajax({
+
+			url: "http://api.wunderground.com/api/790f624c21c12332/forecast/geolookup/conditions/q/NY/New_York.json",
+			async: false, 
+			dataType : "jsonp", 
+			success : function(parsed_json) {
+				console.log('success get data');
+
+				//Current Temp
+				currTemp = parsed_json['current_observation']['temp_c'];
+				//Wind direction
+				var windDir = parsed_json['current_observation']['wind_dir'];
+				//Weather Condition
+				var weatherCon = parsed_json['current_observation']['weather'];
+				//Wind kilo per hour
+				windGust = parsed_json['current_observation']['wind_kph'];
+				//Rain down in hour
+				precip_1hr = parsed_json['current_observation']['precip_1hr_metric'];
+				//humility
+				humility = parsed_json['current_observation']['relative_humidity'];
+				//visibility
+				visibi = parsed_json['current_observation']['visibility_km'];
+
+				console.log('Current Temp: ' + currTemp);
+				console.log('Wind kph: ' + windGust);
+				console.log('Rain: ' + precip_1hr);
+				console.log('Humility: ' + humility);
+				console.log('Clouds Cover: ' + visibi);  
+				} 
+		}); 
+
+		/*********************WEATHER CONDITIONS***************************/
+		/*******************************************************************/
+
+		$(function() {
+		    // setup master volume
+		    $( "#master1" ).slider({
+		      value: 105,
+		      min: 105,
+		      max: 255,
+		      orientation: "horizontal",
+		      range: "min",
+		      animate: true,
+		      change: function(event, ui) {
+			        if (event.originalEvent) {
+			            $('#player1').html(ui.value);
+			            socket.emit('click', ui.value + 'A');
+			        }
+			        else {
+			            $('#player1').html('programmatic: ' + ui.value);
+			        }
+			    }
+		    });
+		    $( "#master2" ).slider({
+		      value: 105,
+		      min: 105,
+		      max: 255,
+		      orientation: "horizontal",
+		      range: "min",
+		      animate: true,
+		      change: function(event, ui) {
+			        if (event.originalEvent) {
+			            $('#player2').html(ui.value);
+			            socket.emit('click', ui.value + 'B');
+			        }
+			        else {
+			            $('#player2').html('programmatic: ' + ui.value);
+			        }
+			    }
+		    });
+		    $( "#master3" ).slider({
+		      value: 105,
+		      min: 105,
+		      max: 255,
+		      orientation: "horizontal",
+		      range: "min",
+		      animate: true,
+		      change: function(event, ui) {
+			        if (event.originalEvent) {
+			            $('#player3').html(ui.value);
+			            socket.emit('click', ui.value + 'C');
+			        }
+			        else {
+			            $('#player3').html('programmatic: ' + ui.value);
+			        }
+			    }
+		    });
+		    // setup graphic EQ
+		    $( "#eq > span" ).each(function() {
+		      // read initial values from markup and remove that
+		      var value = parseInt( $( this ).text(), 10 );
+		      $( this ).empty().slider({
+		        value: value,
+		        range: "min",
+		        animate: true,
+		        orientation: "vertical"
+		      });
+		    });
+		  });
+
+
+		$( "#roll").click(function(event){
+			if(ledState == 0){ //LED is currently off
+				$( "#roll").css('background-color', '#08ff11');
+				ledState = 1;
+				socket.emit('click', 1 + 'R');
+			} else {
+				$( "#roll").css('background-color', '#FF0000');
+				ledState = 0;
+				socket.emit('click', 0 + 'R');
+			}
+		});
+
+		$( "#dir").click(function(event){
+			if(ledState == 0){ //LED is currently off
+				$( "#dir").css('background-color', '#1095ff');
+				ledState = 1;
+				socket.emit('click', 1 + 'D');
+			} else {
+				$( "#dir").css('background-color', '#ffe422');
+				ledState = 0;
+				socket.emit('click', 0 + 'D');
+			}
+		});
+
+		$( "#wind").click(function(event){
+			if(ledState == 0){ //LED is currently off
+				$( "#wind").css('background-color', '#ff31ec');
+				ledState = 1;
+				socket.emit('click', windGust + 'W');
+			} else {
+				$( "#wind").css('background-color', '#75fcff');
+				ledState = 0;
+				socket.emit('click', windGust + 'W');
+			}
+		});
+
+		$( "body" ).mousemove(function(event){
+			var msg = "event handler for mousemove: ";
+			msg += event.pageX + ", "+event.pageY;
+			//console.log(msg);
+
+			var myData = {
+			// 	x: event.pageX,
+			// 	y: event.pageY
+			}
+
+			//socket.emit('event', myData);
+
+			// $( '#mousedata' ).append("<div>"+msg+"</div>");
+			// var len = $( "div" ).length;
+			// if (len > 30) {
+			// 	 $("#mousedata").empty();
+			// }
+		});
+
+
+
+
+		function uintToString(uintArray) {
+			var encodedString = String.fromCharCode.apply(null, uintArray),
+			decodedString = decodeURIComponent(escape(encodedString));
+			return decodedString;
+		}
+
+	</script>
+
+</body>
+</html>
